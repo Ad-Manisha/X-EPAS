@@ -1,6 +1,6 @@
-# EPAS Team Collaboration Guide
+# X-EPAS Team Collaboration Guide
 
-This document provides **step-by-step instructions** and best practices for our 3-member team to collaborate on the ** X-Employee Performance Assessment System (X-EPAS) GitHub repository.
+This document provides **step-by-step instructions** and best practices for our 3-member team to collaborate on the X-Employee Performance Assessment System (X-EPAS) GitHub repository.
 
 ---
 
