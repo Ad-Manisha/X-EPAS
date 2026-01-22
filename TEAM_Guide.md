@@ -21,7 +21,7 @@ This document provides **step-by-step instructions** and best practices for our 
 Each member clones the repo locally:
 
 ```bash
-git clone https://github.com/Ad-Manisha/X-EPAS
+git clone https://github.com/Ad-Manisha/X-EPAS.git
 cd X-EPAS
 ```
 
