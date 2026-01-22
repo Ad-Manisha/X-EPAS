@@ -10,7 +10,7 @@ This document provides **step-by-step instructions** and best practices for our 
 | ---------------- | ------------------------------- | ---------- |
 | Manisha Adhikari | Backend + Database              | `backend`  |
 | Preeti Gurung    | Frontend + UML                  | `frontend` |
-| Friend 2         | AI Evaluation / Data Processing | `ai`       |
+| Aashika Regmi    | AI Evaluation / Data Processing | `ai`       |
 
 > Each member will work on their branch and merge into `main` after review.
 
