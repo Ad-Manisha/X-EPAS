@@ -206,8 +206,324 @@
 - `401` - Unauthorized
 - `403` - Forbidden
 - `404` - Not Found
+- `422` - Unprocessable Entity (Invalid data format)
 - `500` - Server Error
 
 ---
+
+## Admin Management Endpoints
+
+### Create Employee
+**POST** `/admin/employees`  
+**Authorization:** `Bearer <admin_token>`
+
+**Request:**
+```json
+{
+  "name": "Jane Smith",
+  "email": "jane@company.com",
+  "department": "frontend",
+  "password": "SecurePass123!"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "507f1f77bcf86cd799439013",
+  "emp_id": "EMP002",
+  "name": "Jane Smith",
+  "email": "jane@company.com",
+  "department": "frontend",
+  "created_at": "2024-01-24T11:00:00Z",
+  "is_active": true
+}
+```
+
+---
+
+### Get All Employees
+**GET** `/admin/employees`  
+**Authorization:** `Bearer <admin_token>`
+
+**Response:**
+```json
+[
+  {
+    "id": "507f1f77bcf86cd799439012",
+    "emp_id": "EMP001",
+    "name": "John Doe",
+    "email": "john@company.com",
+    "department": "backend",
+    "is_active": true
+  },
+  {
+    "id": "507f1f77bcf86cd799439013",
+    "emp_id": "EMP002",
+    "name": "Jane Smith",
+    "email": "jane@company.com",
+    "department": "frontend",
+    "is_active": true
+  }
+]
+```
+
+---
+
+### Create Project
+**POST** `/admin/projects`  
+**Authorization:** `Bearer <admin_token>`
+
+**Request:**
+```json
+{
+  "name": "E-Commerce Platform",
+  "description": "Build a full-stack e-commerce platform with React frontend and FastAPI backend",
+  "status": "active"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "507f1f77bcf86cd799439014",
+  "project_id": "PRJ001",
+  "name": "E-Commerce Platform",
+  "description": "Build a full-stack e-commerce platform with React frontend and FastAPI backend",
+  "status": "active",
+  "employees": [],
+  "completion_percentage": 0.0,
+  "created_at": "2024-01-24T11:15:00Z",
+  "created_by": "ADM001"
+}
+```
+
+---
+
+### Assign Employees to Project
+**POST** `/admin/projects/{project_id}/assign-employees`  
+**Authorization:** `Bearer <admin_token>`
+
+**Request:**
+```json
+{
+  "employee_ids": ["EMP001", "EMP002"]
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Employees assigned successfully",
+  "project_id": "PRJ001",
+  "assigned_employees": ["EMP001", "EMP002"],
+  "employee_count": 2
+}
+```
+
+---
+
+### Get All Projects
+**GET** `/admin/projects`  
+**Authorization:** `Bearer <admin_token>`
+
+**Response:**
+```json
+[
+  {
+    "id": "507f1f77bcf86cd799439014",
+    "project_id": "PRJ001",
+    "name": "E-Commerce Platform",
+    "description": "Build a full-stack e-commerce platform",
+    "status": "active",
+    "employees": ["EMP001", "EMP002"],
+    "completion_percentage": 25.0,
+    "created_at": "2024-01-24T11:15:00Z",
+    "created_by": "ADM001"
+  }
+]
+```
+
+---
+
+## Task Management Endpoints
+
+### Create Task in Project
+**POST** `/admin/projects/{project_id}/tasks`  
+**Authorization:** `Bearer <admin_token>`
+
+**Request:**
+```json
+{
+  "title": "Implement User Authentication API",
+  "description": "Create JWT-based authentication system with login, logout, and token refresh functionality. Include password hashing, input validation, and proper error handling. The API should follow REST conventions and return appropriate HTTP status codes. This description will be used by AI for evaluation context.",
+  "deadline": "2024-02-15",
+  "department": "backend"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "507f1f77bcf86cd799439015",
+  "task_id": "TSK001",
+  "title": "Implement User Authentication API",
+  "description": "Create JWT-based authentication system with login, logout, and token refresh functionality...",
+  "deadline": "2024-02-15T00:00:00Z",
+  "department": "backend",
+  "project_id": "PRJ001",
+  "assigned_to": null,
+  "status": "assigned",
+  "github_link": null,
+  "submission_date": null,
+  "score": null,
+  "feedback": null,
+  "evaluated_at": null,
+  "created_at": "2024-01-24T11:30:00Z",
+  "created_by": "ADM001"
+}
+```
+
+---
+
+### Assign Task to Employee
+**POST** `/admin/tasks/{task_id}/assign`  
+**Authorization:** `Bearer <admin_token>`
+
+**Request:**
+```json
+{
+  "employee_id": "EMP001"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Task assigned successfully",
+  "task_id": "TSK001",
+  "assigned_to": "EMP001",
+  "employee_name": "John Doe",
+  "employee_department": "backend",
+  "task_department": "backend"
+}
+```
+
+**Response (with department mismatch warning):**
+```json
+{
+  "message": "Task assigned successfully",
+  "task_id": "TSK001",
+  "assigned_to": "EMP002",
+  "employee_name": "Jane Smith",
+  "employee_department": "frontend",
+  "task_department": "backend",
+  "warning": "Department mismatch: Employee is in frontend, task is for backend"
+}
+```
+
+---
+
+### Get Project Tasks
+**GET** `/admin/projects/{project_id}/tasks`  
+**Authorization:** `Bearer <admin_token>`
+
+**Response:**
+```json
+[
+  {
+    "id": "507f1f77bcf86cd799439015",
+    "task_id": "TSK001",
+    "title": "Implement User Authentication API",
+    "deadline": "2024-02-15",
+    "status": "assigned",
+    "assigned_to": "EMP001",
+    "score": null
+  },
+  {
+    "id": "507f1f77bcf86cd799439016",
+    "task_id": "TSK002",
+    "title": "Create React Login Component",
+    "deadline": "2024-02-18",
+    "status": "submitted",
+    "assigned_to": "EMP002",
+    "score": 87.5
+  }
+]
+```
+
+---
+
+### Get Task Details
+**GET** `/admin/tasks/{task_id}`  
+**Authorization:** `Bearer <admin_token>`
+
+**Response:**
+```json
+{
+  "id": "507f1f77bcf86cd799439015",
+  "task_id": "TSK001",
+  "title": "Implement User Authentication API",
+  "description": "Create JWT-based authentication system with login, logout, and token refresh functionality...",
+  "deadline": "2024-02-15T00:00:00Z",
+  "department": "backend",
+  "project_id": "PRJ001",
+  "assigned_to": "EMP001",
+  "status": "submitted",
+  "github_link": "https://github.com/johndoe/auth-api",
+  "submission_date": "2024-02-10T14:30:00Z",
+  "score": 92.0,
+  "feedback": "Excellent implementation with comprehensive error handling and security best practices. Consider adding rate limiting for production use.",
+  "evaluated_at": "2024-02-10T16:45:00Z",
+  "created_at": "2024-01-24T11:30:00Z",
+  "created_by": "ADM001"
+}
+```
+
+---
+
+### Update Task
+**PUT** `/admin/tasks/{task_id}`  
+**Authorization:** `Bearer <admin_token>`
+
+**Request:**
+```json
+{
+  "title": "Updated Task Title",
+  "description": "Updated task description with more specific requirements for AI evaluation",
+  "deadline": "2024-02-20",
+  "department": "backend"
+}
+```
+
+**Response:** Same as Get Task Details with updated information
+
+---
+## Important Notes for Frontend Team
+
+### Authentication Flow
+1. **Admin Login** → Get admin token → Access all admin endpoints
+2. **Employee Login** → Get employee token → Access employee-specific endpoints
+3. **Token Expiry** → Use refresh endpoint or re-login
+
+### Task Workflow
+1. Admin creates project → Assigns employees to project
+2. Admin creates tasks in project → Assigns tasks to employees
+3. Employee views assigned tasks → Submits GitHub URL
+4. AI evaluates submission → Results stored in backend
+5. Admin/Employee views evaluation results
+
+### Key Fields for AI Context
+- **Task Description**: Critical for AI evaluation - should be detailed and specific
+- **Department**: Helps AI understand the context (frontend/backend/AI)
+- **GitHub Link**: Employee submission for AI evaluation
+
+### Department Values
+- `"frontend"` - React/UI development tasks
+- `"backend"` - API/server development tasks
+- `"AI"` - Machine learning/AI development tasks
+
+---
+
 
 **Interactive Documentation:** http://localhost:8000/docs
