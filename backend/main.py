@@ -7,6 +7,7 @@ from routes.auth import router as auth_router
 from database import database
 from config import settings
 from routes.admin import router as admin_router
+from routes.employee import router as employee_router
 import logging
 
 # Set up logging to see what's happening
@@ -34,6 +35,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(employee_router)
 
 # Application lifecycle events
 # These run when the server starts up and shuts down
