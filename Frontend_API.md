@@ -499,6 +499,126 @@
 **Response:** Same as Get Task Details with updated information
 
 ---
+
+## Employee Endpoints
+
+### Get Employee Profile
+**GET** `/auth/me`
+
+**Authorization:** `Bearer <employee_token>`
+
+**Response:**
+```json
+{
+  "user_id": "EMP001",
+  "role": "employee",
+  "user_type": "employee",
+  "email": "john@company.com",
+  "name": "John Doe",
+  "is_active": true,
+  "permissions": ["read:own_profile", "write:task_submissions"]
+}
+```
+
+---
+
+### Get Assigned Tasks
+**GET** `/employee/tasks`
+
+**Authorization:** `Bearer <employee_token>`
+
+**Response:**
+```json
+[
+  {
+    "id": "507f1f77bcf86cd799439015",
+    "task_id": "TSK001",
+    "title": "Implement User Authentication API",
+    "description": "Create JWT-based authentication system with login, logout, and token refresh functionality. Include password hashing, input validation, and proper error handling.",
+    "deadline": "2024-02-15T00:00:00Z",
+    "status": "assigned",
+    "github_link": null,
+    "submission_date": null,
+    "score": null,
+    "feedback": null
+  },
+  {
+    "id": "507f1f77bcf86cd799439016",
+    "task_id": "TSK002",
+    "title": "Create React Login Component",
+    "description": "Build a responsive login form component with validation and error handling.",
+    "deadline": "2024-02-18T00:00:00Z",
+    "status": "submitted",
+    "github_link": "https://github.com/employee/login-component",
+    "submission_date": "2024-02-10T14:30:00Z",
+    "score": 87.5,
+    "feedback": "Good implementation with clean code structure. Consider adding more error handling."
+  }
+]
+```
+
+---
+
+### Get Task Details
+**GET** `/employee/tasks/{task_id}`
+
+**Authorization:** `Bearer <employee_token>`
+
+**Response:**
+```json
+{
+  "id": "507f1f77bcf86cd799439015",
+  "task_id": "TSK001",
+  "title": "Implement User Authentication API",
+  "description": "Create JWT-based authentication system with login, logout, and token refresh functionality. Include password hashing, input validation, and proper error handling. The API should follow REST conventions and return appropriate HTTP status codes.",
+  "deadline": "2024-02-15T00:00:00Z",
+  "status": "assigned",
+  "github_link": null,
+  "submission_date": null,
+  "score": null,
+  "feedback": null
+}
+```
+
+---
+
+### Submit Task
+**POST** `/employee/tasks/{task_id}/submit`
+
+**Authorization:** `Bearer <employee_token>`
+
+**Request:**
+```json
+{
+  "github_link": "https://github.com/employee/auth-api-project"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Task submitted successfully!",
+  "task_id": "TSK001",
+  "github_link": "https://github.com/employee/auth-api-project",
+  "submission_date": "2024-01-25T10:30:00Z",
+  "status": "submitted",
+  "next_steps": [
+    "Your submission has been recorded",
+    "AI system will evaluate your GitHub repository",
+    "You will receive feedback and score once evaluation is complete",
+    "Check back later for evaluation results"
+  ]
+}
+```
+
+**Error Response (Resubmission Attempt):**
+```json
+{
+  "detail": "Task TSK001 is already submitted. Current status: submitted. Resubmission not allowed."
+}
+```
+
+---
 ## Important Notes for Frontend Team
 
 ### Authentication Flow
@@ -509,9 +629,48 @@
 ### Task Workflow
 1. Admin creates project → Assigns employees to project
 2. Admin creates tasks in project → Assigns tasks to employees
-3. Employee views assigned tasks → Submits GitHub URL
+3. Employee views assigned tasks → Submits GitHub URL ✅ **IMPLEMENTED**
 4. AI evaluates submission → Results stored in backend
 5. Admin/Employee views evaluation results
+
+### Employee Frontend Integration Example
+```javascript
+// 1. Employee Login
+const loginResponse = await fetch('/auth/employee/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        identifier: 'john@company.com',
+        password: 'password123'
+    })
+});
+const { access_token } = await loginResponse.json();
+
+// 2. Get Employee Profile
+const profileResponse = await fetch('/auth/me', {
+    headers: { 'Authorization': `Bearer ${access_token}` }
+});
+const profile = await profileResponse.json();
+
+// 3. Get Assigned Tasks
+const tasksResponse = await fetch('/employee/tasks', {
+    headers: { 'Authorization': `Bearer ${access_token}` }
+});
+const tasks = await tasksResponse.json();
+
+// 4. Submit Task
+const submitResponse = await fetch(`/employee/tasks/${taskId}/submit`, {
+    method: 'POST',
+    headers: {
+        'Authorization': `Bearer ${access_token}`,
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+        github_link: 'https://github.com/employee/project-repo'
+    })
+});
+const result = await submitResponse.json();
+```
 
 ### Key Fields for AI Context
 - **Task Description**: Critical for AI evaluation - should be detailed and specific
