@@ -2,7 +2,7 @@
 # Motor allows non-blocking database operations for better performance
 
 from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo.errors import ConnectionFailure
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 from config import settings
 import logging
 
@@ -28,16 +28,23 @@ class Database:
     
     async def connect_to_mongo(self):
         """
-        Establish connection to MongoDB
+        Establish connection to MongoDB Atlas
         
         The 'async' keyword means this function can be paused and resumed
         The 'await' keyword means "wait for this operation, but let other code run"
         """
         try:
-            # Step 1: Create the MongoDB client
-            # AsyncIOMotorClient creates a connection pool (multiple connections ready to use)
-            self.client = AsyncIOMotorClient(settings.mongodb_url)
-            logger.info(f" Attempting to connect to MongoDB at {settings.mongodb_url}")
+            logger.info(f"Attempting to connect to MongoDB Atlas...")
+            
+            # Create MongoDB client with simplified Atlas configuration
+            # MongoDB Atlas handles SSL/TLS automatically with SRV connection strings
+            self.client = AsyncIOMotorClient(
+                settings.mongodb_url,
+                serverSelectionTimeoutMS=5000,  # 5 second timeout
+                connectTimeoutMS=5000,
+                socketTimeoutMS=5000,
+                maxPoolSize=10
+            )
             
             # Step 2: Test the connection with a ping
             # 'await' here means: "send ping to database, but don't freeze the app while waiting"
@@ -48,13 +55,18 @@ class Database:
             # This doesn't create the database yet - MongoDB creates it when first data is inserted
             self.database = self.client[settings.database_name]
             
-            logger.info(f" Successfully connected to MongoDB")
+            logger.info(f" Successfully connected to MongoDB Atlas")
             logger.info(f" Database name: {settings.database_name}")
+
+        except ServerSelectionTimeoutError as e:
+            logger.error(f" MongoDB connection timeout: {e}")
+            logger.error(" Check your internet connection and MongoDB Atlas cluster status")
+            raise e
             
         except ConnectionFailure as e:
             # Handle specific MongoDB connection errors
             logger.error(f" MongoDB connection failed: {e}")
-            logger.error(" Make sure MongoDB is running on your system")
+            logger.error(" Check your connection string and credentials")
             raise e
             
         except Exception as e:
