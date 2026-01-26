@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { adminAPI } from '../services/api';
+import { showSuccessToast, showErrorToast } from '../utils/toast';
 
 export default function AssignTask() {
   const navigate = useNavigate();
@@ -13,7 +14,6 @@ export default function AssignTask() {
   const [loading, setLoading] = useState(true);
   const [createLoading, setCreateLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
 
   // Task form data
   const [taskData, setTaskData] = useState({
@@ -80,7 +80,6 @@ export default function AssignTask() {
     try {
       setCreateLoading(true);
       setError(null);
-      setSuccess(null);
 
       // Step 1: Create the task
       const createTaskResponse = await adminAPI.createTask(selectedProject, {
@@ -107,10 +106,16 @@ export default function AssignTask() {
       });
       setSelectedProject('');
 
-      setSuccess(`Task "${createdTask.title}" created and assigned successfully!`);
+      // Show success toast
+      showSuccessToast(`Task "${createdTask.title}" created and assigned successfully!`);
+
+      // Scroll to top for easy navigation
+      window.scrollTo({ top: 0, behavior: 'smooth' });
 
     } catch (err) {
-      setError('Failed to create task: ' + (err.response?.data?.detail || err.message));
+      const errorMessage = 'Failed to create task: ' + (err.response?.data?.detail || err.message);
+      setError(errorMessage);
+      showErrorToast(errorMessage);
       console.error('Create task error:', err);
     } finally {
       setCreateLoading(false);
@@ -174,24 +179,6 @@ export default function AssignTask() {
 
         {/* Main Form Container */}
         <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8">
-          {/* Success Message */}
-          {success && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-800 text-sm rounded-lg">
-              <div className="flex items-center">
-                <svg className="w-5 h-5 text-green-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                <span className="font-medium">{success}</span>
-                <button 
-                  onClick={() => setSuccess(null)} 
-                  className="ml-auto text-green-600 hover:text-green-800 text-lg font-bold"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Error Message */}
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-800 text-sm rounded-lg">

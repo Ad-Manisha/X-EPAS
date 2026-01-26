@@ -1,30 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { authAPI, adminAPI } from '../services/api';
-
-// Toast notification function
-const showToast = (message) => {
-  // Create toast element
-  const toast = document.createElement('div');
-  toast.className = 'fixed top-4 right-4 bg-purple-300 text-purple-900 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 translate-x-full';
-  toast.textContent = message;
-  
-  // Add to DOM
-  document.body.appendChild(toast);
-  
-  // Animate in
-  setTimeout(() => {
-    toast.classList.remove('translate-x-full');
-  }, 100);
-  
-  // Remove after 3 seconds
-  setTimeout(() => {
-    toast.classList.add('translate-x-full');
-    setTimeout(() => {
-      document.body.removeChild(toast);
-    }, 300);
-  }, 3000);
-};
+import { showInfoToast } from '../utils/toast';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -76,13 +53,13 @@ export default function AdminDashboard() {
           </div>
           <div className="flex space-x-3">
             <button 
-              onClick={() => showToast('Monthly reports feature coming soon!')}
+              onClick={() => showInfoToast('Monthly reports feature coming soon!')}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 shadow-sm"
             >
               This Month
             </button>
             <button 
-              onClick={() => showToast('Report generation feature coming soon!')}
+              onClick={() => showInfoToast('Report generation feature coming soon!')}
               className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg hover:from-blue-700 hover:to-blue-800 shadow-sm"
             >
               Generate Report
@@ -437,7 +414,7 @@ export default function AdminDashboard() {
                   icon="📈" 
                   label="View Reports" 
                   description="Performance analytics"
-                  onClick={() => showToast('Reports feature coming soon!')}
+                  onClick={() => showInfoToast('Reports feature coming soon!')}
                 />
               </div>
             </div>

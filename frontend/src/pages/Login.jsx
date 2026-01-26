@@ -222,7 +222,7 @@ export default function Login() {
         {/* Footer */}
         <div className="text-center mt-8">
           <p className="text-sm text-gray-500">
-            © 2024 X-EPAS. All rights reserved.
+            © 2026 X-EPAS. All rights reserved.
           </p>
         </div>
       </div>
