@@ -53,14 +53,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def validate_password_strength(password: str) -> tuple[bool, str]:
     """
-    Validate password meets security requirements
+    Validate password meets security requirements (relaxed for development)
     
     Requirements:
     - At least 8 characters
-    - Contains uppercase letter
-    - Contains lowercase letter  
-    - Contains digit
-    - Contains special character
     
     Args:
         password (str): Password to validate
@@ -71,20 +67,23 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
     if len(password) < 8:
         return False, "Password must be at least 8 characters long"
     
-    if not any(c.isupper() for c in password):
-        return False, "Password must contain at least one uppercase letter"
+    # Temporarily relaxed requirements for development
+    # Uncomment below for production security:
     
-    if not any(c.islower() for c in password):
-        return False, "Password must contain at least one lowercase letter"
+    # if not any(c.isupper() for c in password):
+    #     return False, "Password must contain at least one uppercase letter"
     
-    if not any(c.isdigit() for c in password):
-        return False, "Password must contain at least one digit"
+    # if not any(c.islower() for c in password):
+    #     return False, "Password must contain at least one lowercase letter"
     
-    special_chars = "!@#$%^&*()_+-=[]{}|;:,.<>?"
-    if not any(c in special_chars for c in password):
-        return False, "Password must contain at least one special character"
+    # if not any(c.isdigit() for c in password):
+    #     return False, "Password must contain at least one digit"
     
-    return True, "Password is strong"
+    # special_chars = "!@#$%^&*()_+-=[]{}|;:,.<>?"
+    # if not any(c in special_chars for c in password):
+    #     return False, "Password must contain at least one special character"
+    
+    return True, "Password is valid"
 
 # Alias for compatibility (if needed elsewhere)
 def get_password_hash(password: str) -> str:

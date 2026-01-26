@@ -106,6 +106,8 @@ async def authenticate_user(collection, identifier: str, password: str, user_mod
     Returns:
         dict: User data if authentication successful, None otherwise
     """
+    print(f"🔍 DEBUG: Looking for user with identifier: {identifier}")
+    
     # Find user by identifier (flexible search)
     user_doc = await collection.find_one({
         "$or": [
@@ -116,23 +118,42 @@ async def authenticate_user(collection, identifier: str, password: str, user_mod
     })
     
     if not user_doc:
+        print(f"❌ DEBUG: No user found with identifier: {identifier}")
         return None
     
+    print(f"✅ DEBUG: User found - ID: {user_doc.get('emp_id') or user_doc.get('admin_id')}")
+    
     # Convert to Pydantic model for validation
-    user = user_model(**user_doc)
+    try:
+        user = user_model(**user_doc)
+        print(f"✅ DEBUG: Pydantic model conversion successful")
+    except Exception as e:
+        print(f"❌ DEBUG: Pydantic model conversion failed: {e}")
+        return None
     
     # Check if account is active
     if not user.is_active:
+        print(f"❌ DEBUG: Account is deactivated")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Account is deactivated",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    print(f"✅ DEBUG: Account is active")
+    
     # Verify password
-    if not verify_password(password, user.hashed_password):
+    stored_hash = user.hashed_password
+    print(f"🔐 DEBUG: Verifying password against hash: {stored_hash[:20]}...")
+    
+    password_valid = verify_password(password, stored_hash)
+    print(f"🔐 DEBUG: Password verification result: {password_valid}")
+    
+    if not password_valid:
+        print(f"❌ DEBUG: Password verification failed")
         return None
     
+    print(f"✅ DEBUG: Authentication successful!")
     return user
 
 def create_user_permissions(role: str, user_type: str) -> list[str]:
@@ -263,6 +284,8 @@ async def employee_login(login_data: EmployeeLogin):
     employees_collection = get_employees_collection()
     
     try:
+        print(f"🔍 DEBUG: Employee login attempt for identifier: {login_data.identifier}")
+        
         # Authenticate using helper function
         employee = await authenticate_user(
             collection=employees_collection,
@@ -272,11 +295,14 @@ async def employee_login(login_data: EmployeeLogin):
         )
         
         if not employee:
+            print(f"❌ DEBUG: Authentication failed for identifier: {login_data.identifier}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        
+        print(f"✅ DEBUG: Authentication successful for employee: {employee.emp_id}")
         
         # Create enhanced response
         return create_enhanced_token_response(employee, "employee", "employee")
@@ -284,6 +310,7 @@ async def employee_login(login_data: EmployeeLogin):
     except HTTPException:
         raise
     except Exception as e:
+        print(f"💥 DEBUG: Exception during employee login: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Authentication service error"
@@ -475,36 +502,34 @@ async def register_admin(admin_data: AdminCreate):
         )
 
 @router.post("/employee/register", response_model=EmployeeResponse)
-async def register_employee(
-    employee_data: EmployeeCreate,
-    current_admin: Dict[str, Any] = Depends(get_current_admin)
-):
+async def register_employee(employee_data: EmployeeCreate):
     """
-    Employee registration endpoint (Admin-only)
+    Employee self-registration endpoint
     
-    Only admins can create employee accounts
-    This ensures proper access control and prevents unauthorized registrations
+    Allows employees to register themselves with their credentials
+    They can then login using their email and password
     
     Args:
         employee_data: EmployeeCreate model with employee information
-        current_admin: Current admin user (from JWT token)
         
     Returns:
         EmployeeResponse: Created employee information (no password)
         
     Raises:
         HTTPException: 400 if employee already exists or validation fails
-        HTTPException: 403 if user is not admin
     """
     employees_collection = get_employees_collection()
     
     try:
+        print(f"🔍 DEBUG: Registration attempt for email: {employee_data.email}")
+        
         # Check if employee with same email already exists
         existing_employee = await employees_collection.find_one({
             "email": employee_data.email
         })
         
         if existing_employee:
+            print(f"❌ DEBUG: Employee already exists with email: {employee_data.email}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Employee with this email already exists"
@@ -513,17 +538,23 @@ async def register_employee(
         # Validate password strength
         is_strong, message = validate_password_strength(employee_data.password)
         if not is_strong:
+            print(f"❌ DEBUG: Password validation failed: {message}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Password validation failed: {message}"
             )
         
+        print(f"✅ DEBUG: Password validation passed")
+        
         # Generate emp_id (simple counter-based approach)
         employee_count = await employees_collection.count_documents({})
         emp_id = f"EMP{str(employee_count + 1).zfill(3)}"  # EMP001, EMP002, etc.
         
+        print(f"✅ DEBUG: Generated employee ID: {emp_id}")
+        
         # Hash the password
         hashed_password = hash_password(employee_data.password)
+        print(f"✅ DEBUG: Password hashed: {hashed_password[:20]}...")
         
         # Create employee document for database
         employee_doc = {
@@ -539,9 +570,12 @@ async def register_employee(
         
         # Insert into database
         result = await employees_collection.insert_one(employee_doc)
+        print(f"✅ DEBUG: Employee inserted with ID: {result.inserted_id}")
         
         # Fetch the created employee (to get the _id)
         created_employee = await employees_collection.find_one({"_id": result.inserted_id})
+        
+        print(f"✅ DEBUG: Employee registration successful - ID: {emp_id}, Email: {employee_data.email}")
         
         # Convert to response model (excludes password)
         return EmployeeResponse(

@@ -25,6 +25,109 @@ router = APIRouter(
 )
 
 # =============================================================================
+# DASHBOARD STATISTICS
+# =============================================================================
+
+@router.get("/dashboard/stats")
+async def get_dashboard_statistics(current_admin: Dict[str, Any] = Depends(get_current_admin)):
+    """
+    Get comprehensive dashboard statistics for admin overview
+    
+    Frontend Usage:
+    - Admin dashboard cards and charts
+    - Performance overview
+    - Quick statistics display
+    """
+    employees_collection = get_employees_collection()
+    projects_collection = get_projects_collection()
+    tasks_collection = get_tasks_collection()
+    
+    try:
+        # Employee statistics
+        total_employees = await employees_collection.count_documents({"is_active": True})
+        
+        # Project statistics
+        total_projects = await projects_collection.count_documents({})
+        active_projects = await projects_collection.count_documents({"status": "in_progress"})
+        
+        # Task statistics
+        total_tasks = await tasks_collection.count_documents({})
+        completed_tasks = await tasks_collection.count_documents({"status": "completed"})
+        submitted_tasks = await tasks_collection.count_documents({"status": "submitted"})
+        assigned_tasks = await tasks_collection.count_documents({"status": "assigned"})
+        
+        # Calculate completion percentage
+        completion_percentage = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+        
+        # Get recent activity (last 10 activities)
+        recent_tasks = []
+        async for task in tasks_collection.find({}).sort("created_at", -1).limit(5):
+            recent_tasks.append({
+                "task_id": task["task_id"],
+                "title": task["title"],
+                "status": task["status"],
+                "created_at": task["created_at"],
+                "assigned_to": task.get("assigned_to"),
+                "project_id": task["project_id"]
+            })
+        
+        # Get upcoming deadlines (next 7 days)
+        from datetime import timedelta
+        upcoming_deadline = datetime.utcnow() + timedelta(days=7)
+        upcoming_tasks = []
+        async for task in tasks_collection.find({
+            "deadline": {"$lte": upcoming_deadline, "$gte": datetime.utcnow()},
+            "status": {"$in": ["assigned", "in_progress"]}
+        }).sort("deadline", 1).limit(5):
+            upcoming_tasks.append({
+                "task_id": task["task_id"],
+                "title": task["title"],
+                "deadline": task["deadline"],
+                "assigned_to": task.get("assigned_to"),
+                "project_id": task["project_id"],
+                "status": task["status"]
+            })
+        
+        # Department-wise task distribution
+        department_stats = {}
+        async for task in tasks_collection.find({}):
+            dept = task.get("department", "Unknown")
+            if dept not in department_stats:
+                department_stats[dept] = {"total": 0, "completed": 0}
+            department_stats[dept]["total"] += 1
+            if task["status"] == "completed":
+                department_stats[dept]["completed"] += 1
+        
+        return {
+            "employees": {
+                "total": total_employees,
+                "active": total_employees  # All fetched employees are active
+            },
+            "projects": {
+                "total": total_projects,
+                "active": active_projects,
+                "completion_rate": (active_projects / total_projects * 100) if total_projects > 0 else 0
+            },
+            "tasks": {
+                "total": total_tasks,
+                "completed": completed_tasks,
+                "submitted": submitted_tasks,
+                "assigned": assigned_tasks,
+                "completion_percentage": round(completion_percentage, 1)
+            },
+            "recent_activity": recent_tasks,
+            "upcoming_deadlines": upcoming_tasks,
+            "department_stats": department_stats,
+            "generated_at": datetime.utcnow()
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch dashboard statistics"
+        )
+
+# =============================================================================
 # EMPLOYEE MANAGEMENT
 # =============================================================================
 

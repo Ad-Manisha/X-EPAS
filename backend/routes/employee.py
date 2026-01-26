@@ -64,10 +64,13 @@ async def get_my_assigned_tasks(
                 description=task_doc["description"],  # Full task requirements for employee
                 deadline=task_doc["deadline"],
                 status=task_doc["status"],
+                project_id=task_doc.get("project_id"),
+                department=task_doc.get("department"),
                 github_link=task_doc["github_link"],      # Shows submitted URL if exists
                 submission_date=task_doc["submission_date"], # Shows when submitted
                 score=task_doc["score"],                   # AI evaluation score (if available)
-                feedback=task_doc["feedback"]              # AI evaluation feedback (if available)
+                feedback=task_doc["feedback"],              # AI evaluation feedback (if available)
+                created_at=task_doc.get("created_at")
             )
             tasks.append(task)
         
@@ -110,6 +113,8 @@ async def get_task_details(
     tasks_collection = get_tasks_collection()
     
     try:
+        print(f"🔍 DEBUG: Employee {current_employee['user_id']} requesting task details for: {task_id}")
+        
         # Security check: Find task AND verify it's assigned to current employee
         # This prevents employees from viewing other employees' tasks
         task = await tasks_collection.find_one({
@@ -118,10 +123,13 @@ async def get_task_details(
         })
         
         if not task:
+            print(f"❌ DEBUG: Task {task_id} not found or not assigned to employee {current_employee['user_id']}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Task {task_id} not found or not assigned to you"
             )
+        
+        print(f"✅ DEBUG: Task {task_id} found for employee {current_employee['user_id']}")
         
         return EmployeeTaskView(
             id=str(task["_id"]),
@@ -130,15 +138,19 @@ async def get_task_details(
             description=task["description"],        # CRITICAL: Full requirements for employee
             deadline=task["deadline"],
             status=task["status"],
+            project_id=task.get("project_id"),
+            department=task.get("department"),
             github_link=task["github_link"],
             submission_date=task["submission_date"],
             score=task["score"],
-            feedback=task["feedback"]
+            feedback=task["feedback"],
+            created_at=task.get("created_at")
         )
         
     except HTTPException:
         raise
     except Exception as e:
+        print(f"💥 DEBUG: Exception in get_task_details: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch task details"

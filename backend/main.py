@@ -27,7 +27,7 @@ app = FastAPI(
 # CORS = Cross-Origin Resource Sharing (lets React frontend talk to FastAPI backend)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,    # Which frontend URLs can access this API
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"],    # Which frontend URLs can access this API
     allow_credentials=True,                 # Allow cookies/auth headers
     allow_methods=["GET", "POST", "PUT", "DELETE"],  # Which HTTP methods allowed
     allow_headers=["*"],                    # Which headers allowed

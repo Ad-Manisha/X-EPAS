@@ -1,166 +1,444 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { adminAPI, employeeAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
-export default function EmployeeDashboard() {
-  const [tasks, setTasks] = useState([]);
+export default function TaskDetails() {
+  const { taskId } = useParams();
+  const navigate = useNavigate();
+  const { isAdmin, user } = useAuth();
+  
+  const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedTask, setSelectedTask] = useState(null); // State for the clicked row
+  const [error, setError] = useState(null);
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
 
-  // --- API FETCHING ---
+  // Edit form data
+  const [editData, setEditData] = useState({
+    title: '',
+    description: '',
+    deadline: '',
+    department: ''
+  });
+
   useEffect(() => {
-    const fetchTasks = async () => {
-      try {
-        // Replace with your actual API endpoint: const response = await fetch('/api/tasks');
-        // Simulated API call:
-        setTimeout(() => {
-          const mockData = [
-            { id: 101, title: "Refactor API Logic", project: "Inventory System", deadline: "2026-01-20", status: "Assigned", priority: "High", owner: "John Doe", description: "Optimize controllers and service layers for X-EPAS scoring." },
-            { id: 102, title: "Design Landing Page", project: "Marketing Web", deadline: "2026-01-30", status: "Assigned", priority: "Medium", owner: "John Doe", description: "Implement responsive hero section using Tailwind CSS." },
-            { id: 103, title: "Database Schema", project: "Inventory System", deadline: "2026-01-15", status: "Completed", priority: "High", owner: "John Doe", description: "Normalized tables and added indexing for search optimization." },
-          ];
-          setTasks(mockData);
-          setLoading(false);
-        }, 800);
-      } catch (error) {
-        console.error("Error fetching tasks:", error);
-        setLoading(false);
+    if (taskId) {
+      fetchTaskDetails();
+    }
+  }, [taskId, isAdmin]);
+
+  const fetchTaskDetails = async () => {
+    try {
+      setLoading(true);
+      
+      // Use appropriate API based on user role
+      const response = isAdmin 
+        ? await adminAPI.getTaskDetails(taskId)
+        : await employeeAPI.getTaskDetails(taskId);
+      
+      setTask(response.data);
+      
+      // Set edit form data (only for admin)
+      if (isAdmin) {
+        setEditData({
+          title: response.data.title,
+          description: response.data.description,
+          deadline: response.data.deadline ? response.data.deadline.split('T')[0] : '', // Format date for input
+          department: response.data.department || ''
+        });
       }
-    };
-    fetchTasks();
-  }, []);
-
-  if (loading) return (
-    <div className="flex h-96 items-center justify-center font-black text-slate-400 animate-pulse">
-      SYNCING DATABASE...
-    </div>
-  );
-
-  return (
-    <div className="max-w-7xl mx-auto p-6 space-y-8 animate-in fade-in duration-700">
       
-      {/* 1. Header */}
-      <div className="border-b border-slate-200 pb-6 flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight">Task Directory</h1>
-          <p className="text-slate-500 font-medium">Click any row to view full specifications.</p>
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch task details');
+      console.error('Fetch task details error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateTask = async (e) => {
+    e.preventDefault();
+    if (!isAdmin) return;
+
+    try {
+      setUpdateLoading(true);
+      await adminAPI.updateTask(taskId, editData);
+      
+      // Refresh task details
+      await fetchTaskDetails();
+      setShowEditForm(false);
+      
+    } catch (err) {
+      setError('Failed to update task: ' + (err.response?.data?.detail || err.message));
+      console.error('Update task error:', err);
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    setEditData({
+      ...editData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'assigned':
+        return 'bg-blue-100 text-blue-800';
+      case 'in_progress':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'submitted':
+        return 'bg-purple-100 text-purple-800';
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Not available';
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid date';
+      
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return 'Invalid date';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading task details...</p>
         </div>
       </div>
+    );
+  }
 
-      {/* 2. Task Table */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-100">
-              <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Ref ID</th>
-              <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Task Title</th>
-              <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Project</th>
-              <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Priority</th>
-              <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Deadline</th>
-              <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {tasks.map((task) => (
-              <tr 
-                key={task.id} 
-                onClick={() => setSelectedTask(task)} // Click triggers detail view
-                className="group cursor-pointer hover:bg-blue-50/50 transition-all active:bg-blue-100"
-              >
-                <td className="p-6 font-mono text-xs font-bold text-slate-400">#TK-{task.id}</td>
-                <td className="p-6 font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{task.title}</td>
-                <td className="p-6 text-sm font-bold text-slate-500">{task.project}</td>
-                <td className="p-6">
-                  <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
-                    task.priority === 'High' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-slate-50 text-slate-500 border-slate-200'
-                  }`}>
-                    {task.priority}
-                  </span>
-                </td>
-                <td className="p-6 text-sm font-medium text-slate-500">{task.deadline}</td>
-                <td className="p-6">
-                  <div className={`w-2.5 h-2.5 rounded-full ${task.status === 'Completed' ? 'bg-green-500' : 'bg-blue-500 animate-pulse'}`}></div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+  if (error && !task) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">{error}</p>
+          <button 
+            onClick={() => navigate(-1)} 
+            className="mt-2 text-red-600 underline"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 max-w-4xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Task Details</h1>
+            <p className="text-gray-600">Task ID: {task?.task_id}</p>
+          </div>
+        </div>
+        
+        {isAdmin && (
+          <button
+            onClick={() => setShowEditForm(!showEditForm)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            {showEditForm ? 'Cancel Edit' : 'Edit Task'}
+          </button>
+        )}
       </div>
 
-      {/* 3. Detail Slide-over / Modal */}
-      {selectedTask && (
-        <TaskDetailPanel 
-          task={selectedTask} 
-          onClose={() => setSelectedTask(null)} 
-        />
+      {/* Error Display */}
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">{error}</p>
+          <button 
+            onClick={() => setError(null)} 
+            className="text-red-600 underline text-sm mt-1"
+          >
+            Dismiss
+          </button>
+        </div>
       )}
-    </div>
-  );
-}
 
-// --- TASK DETAIL PANEL COMPONENT ---
-function TaskDetailPanel({ task, onClose }) {
-  const [repoLink, setRepoLink] = useState("");
-
-  return (
-    <div className="fixed inset-0 z-[100] flex justify-end">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}></div>
-      
-      <div className="relative w-full max-w-lg bg-white h-full shadow-2xl flex flex-col">
-        {/* Header */}
-        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-          <div>
-            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Task Specifications</span>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight mt-1">{task.title}</h2>
+      {/* Edit Form */}
+      {showEditForm && isAdmin && (
+        <div className="mb-6 bg-white rounded-lg shadow-lg border border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Edit Task</h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-900">✕</button>
-        </div>
-
-        {/* Body */}
-        <div className="p-8 flex-1 overflow-y-auto space-y-8">
-          {/* Status Indicator Explanation */}
-          <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-2xl border border-blue-100">
-             <div className={`w-3 h-3 rounded-full ${task.status === 'Completed' ? 'bg-green-500' : 'bg-blue-500 animate-pulse'}`}></div>
-             <p className="text-xs font-bold text-blue-800">
-               Current Status: {task.status === 'Completed' ? 'Work Verified' : 'Submission Pending'}
-             </p>
-          </div>
-
-          <div>
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Technical Brief</h4>
-            <p className="text-slate-700 leading-relaxed font-medium bg-slate-50 p-6 rounded-[2rem] border border-slate-100 italic">
-              "{task.description}"
-            </p>
-          </div>
-
-          {/* Integrated Submission - No need to redirect elsewhere */}
-          {task.status !== 'Completed' && (
-            <div className="space-y-4 pt-4 border-t border-slate-100">
-              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Submit GitHub Link</h4>
-              <input 
-                type="text" 
-                placeholder="https://github.com/your-repo"
-                className="w-full bg-slate-50 border border-slate-200 px-6 py-4 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-blue-600 transition-all"
-                value={repoLink}
-                onChange={(e) => setRepoLink(e.target.value)}
+          
+          <form onSubmit={handleUpdateTask} className="p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+              <input
+                type="text"
+                name="title"
+                value={editData.title}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-300"
+                required
               />
-              <button 
-                onClick={() => alert("Submitting...")}
-                className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-600 transition-all"
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                name="description"
+                value={editData.description}
+                onChange={handleInputChange}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-300"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                <select
+                  name="department"
+                  value={editData.department}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-300"
+                  required
+                >
+                  <option value="Frontend">Frontend</option>
+                  <option value="Backend">Backend</option>
+                  <option value="AI">AI</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Deadline</label>
+                <input
+                  type="date"
+                  name="deadline"
+                  value={editData.deadline}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-300"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex space-x-3 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowEditForm(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                disabled={updateLoading}
               >
-                Confirm Submission
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                disabled={updateLoading}
+              >
+                {updateLoading ? 'Updating...' : 'Update Task'}
               </button>
             </div>
-          )}
+          </form>
         </div>
-      </div>
-    </div>
-  );
-}
+      )}
 
-function InfoBlock({ label, value }) {
-  return (
-    <div className="p-5 border border-slate-100 rounded-3xl">
-      <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-tighter mb-1">{label}</h5>
-      <p className="text-sm font-bold text-slate-800">{value}</p>
+      {/* Task Details */}
+      {task && (
+        <div className="space-y-6">
+          {/* Main Task Info */}
+          <div className="bg-white rounded-lg shadow-lg border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900">{task.title}</h2>
+                <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(task.status)}`}>
+                  {task.status.replace('_', ' ').toUpperCase()}
+                </span>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">Project</h3>
+                  <p className="text-lg text-gray-900">{task.project_id}</p>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">Department</h3>
+                  <span className="inline-flex px-2 py-1 text-sm font-semibold rounded-full bg-blue-100 text-blue-800">
+                    {task.department}
+                  </span>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">Assigned To</h3>
+                  <p className="text-lg text-gray-900">
+                    {isAdmin 
+                      ? (task.assigned_to || 'Unassigned')
+                      : (user?.name || 'You')
+                    }
+                  </p>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">Deadline</h3>
+                  <p className="text-lg text-gray-900">{formatDate(task.deadline)}</p>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-2">Description</h3>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-gray-900 whitespace-pre-wrap">{task.description}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Submission Details */}
+          {task.github_link && (
+            <div className="bg-white rounded-lg shadow-lg border border-gray-200">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">Submission Details</h2>
+              </div>
+              
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-2">GitHub Repository</h3>
+                    <a 
+                      href={task.github_link} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-700 font-medium break-all"
+                    >
+                      {task.github_link}
+                    </a>
+                  </div>
+                  
+                  {task.submission_date && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500 mb-2">Submitted At</h3>
+                      <p className="text-gray-900">{formatDate(task.submission_date)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Evaluation Results */}
+          {task.score !== null && (
+            <div className="bg-white rounded-lg shadow-lg border border-gray-200">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">Evaluation Results</h2>
+              </div>
+              
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-2">Score</h3>
+                    <div className="flex items-center space-x-3">
+                      <span className="text-3xl font-bold text-gray-900">{task.score}</span>
+                      <span className="text-lg text-gray-500">/ 100</span>
+                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        task.score >= 90 ? 'bg-green-100 text-green-800' :
+                        task.score >= 70 ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {task.score >= 90 ? 'Excellent' : task.score >= 70 ? 'Good' : 'Needs Improvement'}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {task.evaluated_at && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500 mb-2">Evaluated At</h3>
+                      <p className="text-gray-900">{formatDate(task.evaluated_at)}</p>
+                    </div>
+                  )}
+                </div>
+
+                {task.feedback && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-2">AI Feedback</h3>
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <p className="text-gray-900 whitespace-pre-wrap">{task.feedback}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Timeline */}
+          <div className="bg-white rounded-lg shadow-lg border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">Timeline</h2>
+            </div>
+            
+            <div className="p-6">
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <div>
+                    <p className="font-medium text-gray-900">Task Created</p>
+                    <p className="text-sm text-gray-500">{formatDate(task.created_at)}</p>
+                  </div>
+                </div>
+                
+                {task.submission_date && (
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                    <div>
+                      <p className="font-medium text-gray-900">Work Submitted</p>
+                      <p className="text-sm text-gray-500">{formatDate(task.submission_date)}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {task.evaluated_at && (
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <div>
+                      <p className="font-medium text-gray-900">Task Evaluated</p>
+                      <p className="text-sm text-gray-500">{formatDate(task.evaluated_at)}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

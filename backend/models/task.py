@@ -1,7 +1,7 @@
 # models/task.py - Task data models
 # Defines data structure for tasks with submissions and AI evaluations
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, field_validator
 from typing import List, Optional
 from datetime import datetime, date
 from bson import ObjectId
@@ -174,12 +174,32 @@ class TaskSubmission(BaseModel):
     Model for employee task submissions
     Used when employee submits GitHub link
     """
-    github_link: HttpUrl = Field(..., description="GitHub repository link")
+    github_link: HttpUrl = Field(..., description="GitHub pull request link")
+    
+    @field_validator('github_link')
+    @classmethod
+    def validate_github_pr_url(cls, v):
+        """
+        Validate that the GitHub URL is a pull request URL
+        Format: https://github.com/owner/repo/pull/number
+        """
+        import re
+        
+        url_str = str(v)
+        github_pr_pattern = r'^https://github\.com/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+/pull/\d+$'
+        
+        if not re.match(github_pr_pattern, url_str):
+            raise ValueError(
+                'GitHub link must be a pull request URL in the format: '
+                'https://github.com/owner/repo/pull/number'
+            )
+        
+        return v
     
     class Config:
         json_schema_extra = {
             "example": {
-                "github_link": "https://github.com/employee/project-repo"
+                "github_link": "https://github.com/employee/project-repo/pull/123"
             }
         }
 
@@ -238,10 +258,13 @@ class EmployeeTaskView(BaseModel):
     description: str
     deadline: date
     status: TaskStatus
+    project_id: Optional[str] = None
+    department: Optional[str] = None
     github_link: Optional[str]
     submission_date: Optional[datetime]
     score: Optional[float]
     feedback: Optional[str]
+    created_at: Optional[datetime] = None
     
     class Config:
         json_schema_extra = {
@@ -252,9 +275,12 @@ class EmployeeTaskView(BaseModel):
                 "description": "Create JWT-based authentication system",
                 "deadline": "2024-02-15",
                 "status": "evaluated",
+                "project_id": "PRJ001",
+                "department": "Backend",
                 "github_link": "https://github.com/employee/auth-system",
                 "submission_date": "2024-02-10T14:30:00Z",
                 "score": 85.5,
-                "feedback": "Good implementation, needs better error handling"
+                "feedback": "Good implementation, needs better error handling",
+                "created_at": "2024-02-01T09:00:00Z"
             }
         }
