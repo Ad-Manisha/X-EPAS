@@ -1,0 +1,26 @@
+# FastAPI - Main web framework for building APIs
+fastapi==0.115.0
+
+# Uvicorn - ASGI server to run FastAPI
+uvicorn[standard]==0.32.0
+
+# MongoDB async driver
+motor==3.6.0
+
+# Data validation and serialization (updated for Python 3.13 compatibility)
+pydantic==2.10.0
+pydantic[email]==2.10.0
+pydantic-settings==2.6.1
+
+# JWT token handling
+python-jose[cryptography]==3.3.0
+
+# Password hashing - Python 3.13 compatible versions
+bcrypt==4.2.1
+passlib[bcrypt]==1.7.4
+
+# Environment variables management
+python-dotenv==1.0.1
+
+# CORS middleware (for frontend integration)
+python-multipart==0.0.12
