@@ -1,142 +1,150 @@
-# database.py - MongoDB connection setup using Motor (async driver)
-# Motor allows non-blocking database operations for better performance
+# database.py - MongoDB connection setup using Beanie ODM
+# Beanie provides async ODM (Object Document Mapper) for MongoDB
 
-from motor.motor_asyncio import AsyncIOMotorClient
+from beanie import init_beanie
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
-from config import settings
+from config import get_settings
 import logging
 
-# Set up logging to track connection status
+# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class Database:
-    """
-    Database connection manager using Motor (async MongoDB driver)
-    
-    Why async? 
-    - Allows FastAPI to handle multiple requests simultaneously
-    - Database operations don't block other API calls
-    - Better performance under load
-    """
-    
-    def __init__(self):
-        # Initialize connection variables as None
-        # Actual connection happens in connect_to_mongo()
-        self.client: AsyncIOMotorClient = None
-        self.database = None
-    
-    async def connect_to_mongo(self):
-        """
-        Establish connection to MongoDB Atlas
-        
-        The 'async' keyword means this function can be paused and resumed
-        The 'await' keyword means "wait for this operation, but let other code run"
-        """
-        try:
-            logger.info(f"Attempting to connect to MongoDB Atlas...")
-            
-            # Create MongoDB client with simplified Atlas configuration
-            # MongoDB Atlas handles SSL/TLS automatically with SRV connection strings
-            self.client = AsyncIOMotorClient(
-                settings.mongodb_url,
-                serverSelectionTimeoutMS=5000,  # 5 second timeout
-                connectTimeoutMS=5000,
-                socketTimeoutMS=5000,
-                maxPoolSize=10
-            )
-            
-            # Step 2: Test the connection with a ping
-            # 'await' here means: "send ping to database, but don't freeze the app while waiting"
-            await self.client.admin.command('ping')
-            logger.info(" MongoDB ping successful")
-            
-            # Step 3: Get reference to our specific database
-            # This doesn't create the database yet - MongoDB creates it when first data is inserted
-            self.database = self.client[settings.database_name]
-            
-            logger.info(f" Successfully connected to MongoDB Atlas")
-            logger.info(f" Database name: {settings.database_name}")
+settings = get_settings()
 
-        except ServerSelectionTimeoutError as e:
-            logger.error(f" MongoDB connection timeout: {e}")
-            logger.error(" Check your internet connection and MongoDB Atlas cluster status")
-            raise e
-            
-        except ConnectionFailure as e:
-            # Handle specific MongoDB connection errors
-            logger.error(f" MongoDB connection failed: {e}")
-            logger.error(" Check your connection string and credentials")
-            raise e
-            
-        except Exception as e:
-            # Handle any other unexpected errors
-            logger.error(f" Unexpected database error: {e}")
-            raise e
-    
-    async def close_mongo_connection(self):
-        """
-        Properly close the database connection
-        
-        Important: Always close connections to free up resources
-        FastAPI will call this when the app shuts down
-        """
-        if self.client:
-            self.client.close()
-            logger.info(" MongoDB connection closed")
 
-# Create a single database instance for the entire application
-# This follows the "singleton" pattern - one database connection shared by all
-database = Database()
+class MongoDB:
+    """MongoDB connection manager using Beanie ODM."""
+    client: AsyncIOMotorClient | None = None
+    db: AsyncIOMotorDatabase | None = None
 
-def get_database():
+
+mongodb = MongoDB()
+
+
+def get_document_models() -> list:
     """
-    Get the database instance
-    
-    Why a function? 
-    - Provides a clean way for other files to access the database
-    - Makes testing easier (we can mock this function)
-    - Follows FastAPI dependency injection patterns
+    Get all Beanie document models to register.
+    Import here to avoid circular imports.
     """
-    return database.database
+    from models.github_pr import GithubLink
+    # Add more document models here as you convert them:
+    # from models.admin import AdminDocument
+    # from models.employee import EmployeeDocument
+    # from models.project import ProjectDocument
+    # from models.task import TaskDocument
 
-# Collection helper functions
-# Collections in MongoDB are like tables in SQL databases
+    return [GithubLink]
+
+
+async def connect_to_mongo():
+    """Initialize MongoDB connection and Beanie ODM."""
+    logger.info(f"Connecting to MongoDB at {settings.mongodb_url}...")
+
+    try:
+        mongodb.client = AsyncIOMotorClient(
+            settings.mongodb_url,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=5000,
+            socketTimeoutMS=5000,
+            maxPoolSize=10
+        )
+
+        # Test connection
+        await mongodb.client.admin.command('ping')
+        logger.info("MongoDB ping successful")
+
+        mongodb.db = mongodb.client[settings.database_name]
+
+        # Initialize Beanie with document models
+        await init_beanie(
+            database=mongodb.db,
+            document_models=get_document_models()
+        )
+
+        logger.info(f"Successfully connected to MongoDB with Beanie ODM")
+        logger.info(f"Database name: {settings.database_name}")
+
+    except ServerSelectionTimeoutError as e:
+        logger.error(f"MongoDB connection timeout: {e}")
+        logger.error("Check if MongoDB is running and accessible")
+        raise e
+    except ConnectionFailure as e:
+        logger.error(f"MongoDB connection failed: {e}")
+        logger.error("Check your connection string and credentials")
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected database error: {e}")
+        raise e
+
+
+async def close_mongo_connection():
+    """Close MongoDB connection."""
+    if mongodb.client:
+        mongodb.client.close()
+        logger.info("MongoDB connection closed")
+
+
+def get_database() -> AsyncIOMotorDatabase:
+    """Get the database instance."""
+    return mongodb.db
+
+
+# =============================================================================
+# BACKWARDS COMPATIBILITY - Collection getters for non-Beanie code
+# These will be deprecated once all models are converted to Beanie Documents
+# =============================================================================
 
 def get_collection(collection_name: str):
-    """
-    Get a specific collection by name
-    
-    Args:
-        collection_name: The name of the collection (e.g., 'users', 'projects')
-    
-    Returns:
-        Motor collection object for async operations
-    """
+    """Get a specific collection by name."""
     db = get_database()
     if db is None:
         raise RuntimeError("Database not connected. Call connect_to_mongo() first.")
     return db[collection_name]
 
-# Pre-defined collection getters for type safety and convenience
-# These make it easy to get collections without typos in collection names
 
 def get_admins_collection():
-    """Get the admins collection - stores admin user data"""
+    """Get the admins collection."""
     return get_collection("admins")
 
+
 def get_employees_collection():
-    """Get the employees collection - stores employee user data"""
+    """Get the employees collection."""
     return get_collection("employees")
 
+
 def get_projects_collection():
-    """Get the projects collection - stores project information"""
+    """Get the projects collection."""
     return get_collection("projects")
 
+
 def get_tasks_collection():
-    """Get the tasks collection - stores task assignments and submissions"""
+    """Get the tasks collection."""
     return get_collection("tasks")
 
+
 def get_attendance_collection():
-    """Get the attendance collection - stores employee attendance records"""
+    """Get the attendance collection."""
     return get_collection("attendance")
+
+
+# Legacy Database class for backwards compatibility
+class Database:
+    """Legacy database class - use mongodb instance instead."""
+
+    def __init__(self):
+        self.client = None
+        self.database = None
+
+    async def connect_to_mongo(self):
+        await connect_to_mongo()
+        self.client = mongodb.client
+        self.database = mongodb.db
+
+    async def close_mongo_connection(self):
+        await close_mongo_connection()
+
+
+# Legacy instance for backwards compatibility
+database = Database()

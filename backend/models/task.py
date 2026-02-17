@@ -75,8 +75,12 @@ class TaskInDB(TaskBase):
     submission_date: Optional[datetime] = Field(None, description="When task was submitted")
     
     # AI evaluation fields (nullable until evaluated)
-    score: Optional[float] = Field(None, ge=0, le=100, description="AI evaluation score (0-100)")
-    feedback: Optional[str] = Field(None, max_length=2000, description="AI evaluation feedback")
+    score: Optional[float] = Field(None, ge=0, le=100, description="Overall AI evaluation score (0-100)")
+    creativity_score: Optional[int] = Field(None, ge=0, le=10, description="Creativity score (0-10)")
+    efficiency_score: Optional[int] = Field(None, ge=0, le=10, description="Efficiency score (0-10)")
+    edge_case_handling_score: Optional[int] = Field(None, ge=0, le=10, description="Edge case handling score (0-10)")
+    feedback: Optional[str] = Field(None, max_length=2000, description="AI evaluation summary")
+    review_comments: Optional[List[dict]] = Field(None, description="Line-specific review comments from AI")
     evaluated_at: Optional[datetime] = Field(None, description="When AI evaluation was completed")
     
     # Metadata
@@ -110,14 +114,18 @@ class TaskResponse(TaskBase):
     submission_date: Optional[datetime] = Field(None, description="When task was submitted")
     
     # AI evaluation results
-    score: Optional[float] = Field(None, description="AI evaluation score (0-100)")
-    feedback: Optional[str] = Field(None, description="AI evaluation feedback")
+    score: Optional[float] = Field(None, description="Overall AI evaluation score (0-100)")
+    creativity_score: Optional[int] = Field(None, description="Creativity score (0-10)")
+    efficiency_score: Optional[int] = Field(None, description="Efficiency score (0-10)")
+    edge_case_handling_score: Optional[int] = Field(None, description="Edge case handling score (0-10)")
+    feedback: Optional[str] = Field(None, description="AI evaluation summary")
+    review_comments: Optional[List[dict]] = Field(None, description="Line-specific review comments")
     evaluated_at: Optional[datetime] = Field(None, description="When AI evaluation was completed")
-    
+
     # Metadata
     created_at: datetime
     created_by: str
-    
+
     class Config:
         populate_by_name = True
         json_schema_extra = {
@@ -131,10 +139,14 @@ class TaskResponse(TaskBase):
                 "project_id": "PRJ001",
                 "assigned_to": "EMP001",
                 "status": "evaluated",
-                "github_link": "https://github.com/user/auth-system",
+                "github_link": "https://github.com/user/auth-system/pull/1",
                 "submission_date": "2024-02-10T14:30:00Z",
-                "score": 85.5,
-                "feedback": "Good implementation, needs better error handling",
+                "score": 83.3,
+                "creativity_score": 8,
+                "efficiency_score": 9,
+                "edge_case_handling_score": 8,
+                "feedback": "Good implementation with clean code structure",
+                "review_comments": [{"path": "src/auth.py", "line": 12, "body": "Consider adding input validation"}],
                 "evaluated_at": "2024-02-10T16:45:00Z",
                 "created_at": "2024-02-01T09:00:00Z",
                 "created_by": "ADM001"
@@ -263,9 +275,13 @@ class EmployeeTaskView(BaseModel):
     github_link: Optional[str]
     submission_date: Optional[datetime]
     score: Optional[float]
+    creativity_score: Optional[int] = None
+    efficiency_score: Optional[int] = None
+    edge_case_handling_score: Optional[int] = None
     feedback: Optional[str]
+    review_comments: Optional[List[dict]] = None
     created_at: Optional[datetime] = None
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -277,10 +293,14 @@ class EmployeeTaskView(BaseModel):
                 "status": "evaluated",
                 "project_id": "PRJ001",
                 "department": "Backend",
-                "github_link": "https://github.com/employee/auth-system",
+                "github_link": "https://github.com/employee/auth-system/pull/1",
                 "submission_date": "2024-02-10T14:30:00Z",
-                "score": 85.5,
-                "feedback": "Good implementation, needs better error handling",
+                "score": 83.3,
+                "creativity_score": 8,
+                "efficiency_score": 9,
+                "edge_case_handling_score": 8,
+                "feedback": "Good implementation with clean code structure",
+                "review_comments": [{"path": "src/auth.py", "line": 12, "body": "Consider adding input validation"}],
                 "created_at": "2024-02-01T09:00:00Z"
             }
         }

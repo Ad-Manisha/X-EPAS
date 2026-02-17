@@ -8,6 +8,7 @@ from database import database
 from config import settings
 from routes.admin import router as admin_router
 from routes.employee import router as employee_router
+from routes.github import router as github_router
 import logging
 
 # Set up logging to see what's happening
@@ -27,15 +28,22 @@ app = FastAPI(
 # CORS = Cross-Origin Resource Sharing (lets React frontend talk to FastAPI backend)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"],    # Which frontend URLs can access this API
-    allow_credentials=True,                 # Allow cookies/auth headers
-    allow_methods=["GET", "POST", "PUT", "DELETE"],  # Which HTTP methods allowed
-    allow_headers=["*"],                    # Which headers allowed
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(employee_router)
+app.include_router(github_router)
 
 # Application lifecycle events
 # These run when the server starts up and shuts down

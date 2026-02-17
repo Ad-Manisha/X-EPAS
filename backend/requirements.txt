@@ -5,7 +5,10 @@ fastapi==0.115.0
 uvicorn[standard]==0.32.0
 
 # MongoDB async driver
-motor==3.6.0
+motor>=3.7.0
+
+# MongoDB ODM (Object Document Mapper)
+beanie>=1.25.0
 
 # Data validation and serialization (updated for Python 3.13 compatibility)
 pydantic==2.10.0
@@ -24,3 +27,9 @@ python-dotenv==1.0.1
 
 # CORS middleware (for frontend integration)
 python-multipart==0.0.12
+
+# HTTP client for async requests
+httpx>=0.26.0
+
+# Anthropic Claude API client
+anthropic>=0.39.0
